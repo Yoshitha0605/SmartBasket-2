@@ -1,0 +1,10 @@
+project_id = "mmanmugdduvgombpwamb"
+
+[functions.send-order-cancellation-email]
+verify_jwt = false
+
+[functions.send-order-confirmation-email]
+verify_jwt = false
+
+[functions.send-order-status-email]
+verify_jwt = false
