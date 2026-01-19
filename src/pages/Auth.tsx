@@ -87,7 +87,7 @@ const Auth = () => {
     setResendCooldown(60);
     toast({
       title: "OTP Sent",
-      description: `A 6-digit verification code has been sent to your email (${phone.replace(/\D/g, '')}@smartbasket.app)`,
+      description: `A 6-digit verification code has been sent to ${phone}`,
     });
   };
 

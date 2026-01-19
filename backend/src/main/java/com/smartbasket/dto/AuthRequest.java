@@ -6,6 +6,10 @@ public class AuthRequest {
     private String fullName;
     private String type; // "login" or "register"
     
+    // Demo auth fields - phone + OTP
+    private String phone;
+    private String otp;
+    
     public AuthRequest() {}
     
     public AuthRequest(String email, String password, String type) {
@@ -25,4 +29,10 @@ public class AuthRequest {
     
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getOtp() { return otp; }
+    public void setOtp(String otp) { this.otp = otp; }
 }

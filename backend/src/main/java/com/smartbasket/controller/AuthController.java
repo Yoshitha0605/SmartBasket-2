@@ -25,6 +25,7 @@ public class AuthController {
                     user.getId(),
                     user.getEmail(),
                     user.getFullName(),
+                    user.getPhone(),
                     user.getRole(),
                     "Registration successful",
                     true
@@ -34,6 +35,7 @@ public class AuthController {
             AuthResponse response = new AuthResponse(
                     null,
                     request.getEmail(),
+                    null,
                     null,
                     null,
                     e.getMessage(),
@@ -51,6 +53,7 @@ public class AuthController {
                     user.getId(),
                     user.getEmail(),
                     user.getFullName(),
+                    user.getPhone(),
                     user.getRole(),
                     "Login successful",
                     true
@@ -61,6 +64,55 @@ public class AuthController {
                     null,
                     request.getEmail(),
                     null,
+                    null,
+                    null,
+                    e.getMessage(),
+                    false
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+    }
+    
+    /**
+     * DEMO AUTH: Phone + OTP Login
+     * College demo mode endpoint
+     * Accepts any 6-digit OTP, creates user if not exists
+     * Request: { "phone": "9876543210", "otp": "123456" }
+     */
+    @PostMapping("/login/phone")
+    public ResponseEntity<AuthResponse> loginWithPhone(@RequestBody AuthRequest request) {
+        try {
+            // Validate phone and OTP are provided
+            if (request.getPhone() == null || request.getPhone().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new AuthResponse(null, null, null, null, null, "Phone number is required", false)
+                );
+            }
+            if (request.getOtp() == null || request.getOtp().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new AuthResponse(null, null, null, null, null, "OTP is required", false)
+                );
+            }
+            
+            // Perform phone + OTP login (demo mode)
+            User user = authService.loginWithPhoneOtp(request.getPhone(), request.getOtp());
+            
+            AuthResponse response = new AuthResponse(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getFullName(),
+                    user.getPhone(),
+                    user.getRole(),
+                    "Login successful",
+                    true
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            AuthResponse response = new AuthResponse(
+                    null,
+                    null,
+                    null,
+                    request.getPhone(),
                     null,
                     e.getMessage(),
                     false
