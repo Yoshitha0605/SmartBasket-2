@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { SmartSuggestions } from '@/components/SmartSuggestions';
 import { getPriceInsight } from '@/data/priceHistory';
 import { PlatformLogo, getPlatformColor } from '@/components/PlatformLogo';
-import { supabase } from '@/integrations/supabase/client';
+import { getBackendUrl } from '@/lib/api';
 
 interface PlatformData {
   id: number;
@@ -27,9 +27,12 @@ interface PlatformData {
 interface DbPlatform {
   id: number;
   name: string;
-  avg_delivery_minutes: number;
-  base_delivery_fee: number;
-  free_delivery_threshold: number;
+  logoUrl?: string;
+  baseDeliveryFee: string;
+  freeDeliveryThreshold: string;
+  avgDeliveryMinutes: number;
+  websiteUrl: string;
+  createdAt: string;
 }
 
 interface DbProduct {
@@ -97,23 +100,22 @@ const ItemDetails = () => {
     }
   }, [quantityOptions, selectedQuantityOption]);
 
-  // Fetch platforms from database
+  // Fetch platforms from backend API with retry logic
   useEffect(() => {
-    const fetchPlatforms = async () => {
+    const fetchPlatforms = async (retries = 3) => {
       if (!product) return;
       
       setIsLoading(true);
       try {
-        const { data: dbPlatforms, error } = await supabase
-          .from('platforms')
-          .select('*')
-          .order('avg_delivery_minutes');
+        const response = await fetch(`${getBackendUrl()}/api/platforms`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch platforms');
+        }
+        const dbPlatforms = await response.json();
         
-        if (error) throw error;
-
         const multiplier = selectedQuantityOption?.multiplier || 1;
 
-        const platformData: PlatformData[] = (dbPlatforms as DbPlatform[]).map((p) => {
+        const platformData: PlatformData[] = dbPlatforms.map((p: DbPlatform) => {
           // Generate realistic prices based on product price with some variance
           const basePrice = product.price;
           const variance = 0.85 + Math.random() * 0.25; // 0.85 to 1.10 range
@@ -123,8 +125,8 @@ const ItemDetails = () => {
             id: p.id,
             name: p.name,
             price: adjustedPrice,
-            deliveryTime: p.avg_delivery_minutes,
-            deliveryFee: p.base_delivery_fee,
+            deliveryTime: p.avgDeliveryMinutes,
+            deliveryFee: parseFloat(p.baseDeliveryFee),
             color: getPlatformColor(p.name)
           };
         });
@@ -134,6 +136,14 @@ const ItemDetails = () => {
         if (import.meta.env.DEV) {
           console.error('Error fetching platforms:', error);
         }
+        // Retry logic
+        if (retries > 0) {
+          console.log(`Retrying platforms fetch, ${retries} attempts left`);
+          setTimeout(() => fetchPlatforms(retries - 1), 1000);
+          return;
+        }
+        // Set empty platforms array on error after retries
+        setPlatforms([]);
       } finally {
         setIsLoading(false);
       }
@@ -263,7 +273,7 @@ const ItemDetails = () => {
         </div>
 
         {/* Quantity Options - Horizontal scroll */}
-        {quantityOptions.length > 1 && (
+        {quantityOptions.length > 0 && (
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground mb-3">Select Quantity</h2>
             <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
