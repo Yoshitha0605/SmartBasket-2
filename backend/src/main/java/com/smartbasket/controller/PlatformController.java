@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/platforms")
-@CrossOrigin(origins = {"http://localhost:8080", "http://localhost:5173"})
+@CrossOrigin(origins = {"http://localhost:8080", "http://localhost:5173", "http://10.0.2.2:8081"})
 public class PlatformController {
     
     private static final Logger logger = LoggerFactory.getLogger(PlatformController.class);
