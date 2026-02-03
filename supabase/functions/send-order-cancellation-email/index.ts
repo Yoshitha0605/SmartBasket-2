@@ -11,7 +11,7 @@ const corsHeaders = {
 
 interface OrderCancellationRequest {
   orderId: string;
-  userPhone?: string;
+  userEmail: string;
   userName?: string;
   grandTotal: number;
   paymentMethod: string;
@@ -25,22 +25,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { orderId, userPhone, userName, grandTotal, paymentMethod, cancelledAt }: OrderCancellationRequest = await req.json();
+    const { orderId, userEmail, userName, grandTotal, paymentMethod, cancelledAt }: OrderCancellationRequest = await req.json();
 
-    // Generate internal email for notification (based on userPhone)
-    const userEmail = userPhone 
-      ? `${userPhone.replace(/\D/g, '')}@smartbasket.app`
-      : null;
-
-    if (!userEmail) {
-      console.log(`No phone provided for order ${orderId}`);
-      return new Response(
-        JSON.stringify({ error: "No phone provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Sending cancellation notification for order ${orderId} to ${userPhone}`);
+    console.log(`Sending cancellation email for order ${orderId} to ${userEmail}`);
 
     const formattedDate = new Date(cancelledAt).toLocaleString('en-IN', {
       dateStyle: 'medium',

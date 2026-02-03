@@ -36,7 +36,7 @@ export interface OrderWithItems extends DbOrder {
 }
 
 export function useDbOrders() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -155,13 +155,13 @@ export function useDbOrders() {
       }
     }
 
-    // Send confirmation notification (fire and forget)
+    // Send confirmation email notification (fire and forget)
     try {
       await supabase.functions.invoke('send-order-confirmation-email', {
         body: {
           orderId: order.id,
-          userPhone: profile?.phone || user.user_metadata?.phone,
-          userName: profile?.name || user.user_metadata?.name || profile?.phone || user.user_metadata?.phone,
+          userEmail: user.email,
+          userName: user.user_metadata?.name || user.email?.split('@')[0],
           totalPrice: orderData.totalPrice,
           deliveryFee: orderData.deliveryFee,
           grandTotal: orderData.grandTotal,
@@ -236,13 +236,13 @@ export function useDbOrders() {
       return { error: updateError, success: false };
     }
 
-    // Send cancellation notification (fire and forget)
+    // Send cancellation email notification (fire and forget)
     try {
       await supabase.functions.invoke('send-order-cancellation-email', {
         body: {
           orderId,
-          userPhone: profile?.phone || user.user_metadata?.phone,
-          userName: profile?.name || user.user_metadata?.name || profile?.phone || user.user_metadata?.phone,
+          userEmail: user.email,
+          userName: user.user_metadata?.name || user.email?.split('@')[0],
           grandTotal: order.grand_total,
           paymentMethod: order.payment_method,
           cancelledAt: new Date().toISOString(),

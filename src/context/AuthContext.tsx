@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { isDemoAuth } from '@/config/demo';
 
 export interface UserProfile {
   id: string;
@@ -18,7 +17,6 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
-  phone: string | null; // Primary user phone identity
   sendOtp: (phone: string, name?: string) => Promise<{ error: Error | null }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -32,7 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [phone, setPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -52,61 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data as UserProfile | null;
   };
 
-  // DEMO AUTH: Create a mock user object for demo mode
-  const createDemoUser = (phone: string): User => {
-    const sanitizedPhone = phone.replace(/\D/g, '');
-    return {
-      id: sanitizedPhone, // Use phone as ID in demo mode
-      aud: 'authenticated',
-      role: 'authenticated',
-      email: `${sanitizedPhone}@smartbasket.app`,
-      email_confirmed_at: new Date().toISOString(),
-      phone: phone,
-      confirmed_at: new Date().toISOString(),
-      last_sign_in_at: new Date().toISOString(),
-      app_metadata: {
-        provider: 'demo',
-        providers: ['demo'],
-      },
-      user_metadata: {
-        phone: phone,
-        name: 'Demo User',
-      },
-      identities: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_anonymous: false,
-    } as User;
-  };
-
-  // DEMO AUTH: Create a mock session for demo mode
-  const createDemoSession = (user: User): Session => {
-    return {
-      provider_token: 'demo_token',
-      provider_refresh_token: null,
-      access_token: 'demo_access_token',
-      refresh_token: 'demo_refresh_token',
-      expires_in: 3600,
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
-      token_type: 'bearer',
-      session_state: 'demo',
-      user: user,
-    } as Session;
-  };
-
-  // DEMO AUTH: Create a mock profile for demo mode
-  const createDemoProfile = (phone: string): UserProfile => {
-    const sanitizedPhone = phone.replace(/\D/g, '');
-    return {
-      id: sanitizedPhone,
-      name: 'Demo User',
-      phone: phone,
-      city: null,
-      pin_code: null,
-      address: null,
-    };
-  };
-
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -114,24 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Extract phone from user metadata and set it
-        const userPhone = session?.user?.user_metadata?.phone || null;
-        setPhone(userPhone);
-        
         // Defer profile fetch with setTimeout to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id).then((profileData) => {
-              setProfile(profileData);
-              // Also set phone from profile if available
-              if (profileData?.phone) {
-                setPhone(profileData.phone);
-              }
-            });
+            fetchProfile(session.user.id).then(setProfile);
           }, 0);
         } else {
           setProfile(null);
-          setPhone(null);
         }
       }
     );
@@ -140,19 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // Extract phone from user metadata
-      const userPhone = session?.user?.user_metadata?.phone || null;
-      setPhone(userPhone);
-      
       if (session?.user) {
-        fetchProfile(session.user.id).then((profileData) => {
-          setProfile(profileData);
-          // Also set phone from profile if available
-          if (profileData?.phone) {
-            setPhone(profileData.phone);
-          }
-        });
+        fetchProfile(session.user.id).then(setProfile);
       }
       setLoading(false);
     });
@@ -161,23 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendOtp = async (phone: string, name?: string) => {
-    // DEMO AUTH: In demo mode, accept any phone number without calling Supabase
-    if (isDemoAuth()) {
-      if (import.meta.env.DEV) {
-        console.log(`[DEMO AUTH] OTP requested for phone: ${phone}`);
-      }
-      return { error: null };
-    }
-
-    // Production: Generate email internally for Supabase OTP
-    // Keep this internal only - never display to user
+    // Use phone as email for OTP (Supabase uses email-based magic link/OTP)
     const email = `${phone.replace(/\D/g, '')}@smartbasket.app`;
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/home`,
-        data: { phone, ...(name && { name }) },
+        data: name ? { name, phone } : undefined,
       },
     });
 
@@ -189,37 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const verifyOtp = async (phone: string, token: string) => {
-    // DEMO AUTH: In demo mode, accept any 6-digit code and create mock session
-    if (isDemoAuth()) {
-      // Validate token is 6 digits
-      if (!/^\d{6}$/.test(token)) {
-        return { error: new Error('Invalid OTP format. Must be 6 digits.') };
-      }
-
-      if (import.meta.env.DEV) {
-        console.log(`[DEMO AUTH] OTP verified for phone: ${phone}`);
-      }
-
-      // Create mock user, session, and profile
-      const demoUser = createDemoUser(phone);
-      const demoSession = createDemoSession(demoUser);
-      const demoProfile = createDemoProfile(phone);
-
-      // Set state to simulate authenticated session
-      setUser(demoUser);
-      setSession(demoSession);
-      setProfile(demoProfile);
-      setPhone(phone);
-
-      if (import.meta.env.DEV) {
-        console.log('[DEMO AUTH] Mock session created:', { user: demoUser, profile: demoProfile });
-      }
-
-      return { error: null };
-    }
-
-    // Production: Generate email internally for Supabase OTP verification
-    // Keep this internal only - never display to user
     const email = `${phone.replace(/\D/g, '')}@smartbasket.app`;
     
     const { data, error } = await supabase.auth.verifyOtp({
@@ -232,43 +112,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error };
     }
 
-    // Update profile with phone if it's a new user or missing
+    // Update profile with phone if it's a new user
     if (data.user) {
       const existingProfile = await fetchProfile(data.user.id);
-      if (!existingProfile || !existingProfile.phone) {
+      if (existingProfile && !existingProfile.phone) {
         await supabase
           .from('profiles')
           .update({ phone })
           .eq('id', data.user.id);
       }
-      // Set phone state
-      setPhone(phone);
     }
 
     return { error: null };
   };
 
   const signOut = async () => {
-    // DEMO AUTH: In demo mode, just clear state (no Supabase call needed)
-    if (isDemoAuth()) {
-      if (import.meta.env.DEV) {
-        console.log('[DEMO AUTH] Logging out from demo session');
-      }
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setPhone(null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
-      return;
-    }
-
-    // Production: Call Supabase signOut
     await supabase.auth.signOut();
     setProfile(null);
-    setPhone(null);
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
@@ -280,22 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error('Not authenticated') };
     }
 
-    // DEMO MODE – backend persistence disabled
-    if (isDemoAuth()) {
-      if (import.meta.env.DEV) {
-        console.log('[DEMO AUTH] Updating profile locally (no Supabase call):', data);
-      }
-      // Update profile data locally in React state only
-      setProfile(prev => prev ? { ...prev, ...data } : null);
-      
-      if (import.meta.env.DEV) {
-        console.log('[DEMO AUTH] Profile updated successfully in demo mode');
-      }
-      
-      return { error: null };
-    }
-
-    // Production mode: Call Supabase to persist profile
     const { error } = await supabase
       .from('profiles')
       .update(data)
@@ -321,7 +165,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         profile,
-        phone,
         loading,
         sendOtp,
         verifyOtp,

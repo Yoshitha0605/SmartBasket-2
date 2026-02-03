@@ -18,7 +18,7 @@ interface OrderItem {
 
 interface OrderConfirmationRequest {
   orderId: string;
-  userPhone?: string;
+  userEmail: string;
   userName?: string;
   totalPrice: number;
   deliveryFee: number;
@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { 
       orderId, 
-      userPhone, 
+      userEmail, 
       userName, 
       totalPrice,
       deliveryFee,
@@ -53,20 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
       createdAt 
     }: OrderConfirmationRequest = await req.json();
 
-    // Generate internal email for notification (based on userPhone)
-    const userEmail = userPhone 
-      ? `${userPhone.replace(/\D/g, '')}@smartbasket.app`
-      : null;
-
-    if (!userEmail) {
-      console.log(`No phone provided for order ${orderId}`);
-      return new Response(
-        JSON.stringify({ error: "No phone provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Sending confirmation notification for order ${orderId} to ${userPhone}`);
+    console.log(`Sending confirmation email for order ${orderId} to ${userEmail}`);
 
     const formattedDate = new Date(createdAt).toLocaleString('en-IN', {
       dateStyle: 'medium',

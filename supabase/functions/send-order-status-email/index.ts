@@ -11,7 +11,7 @@ const corsHeaders = {
 
 interface OrderStatusEmailRequest {
   orderId: string;
-  userPhone?: string;
+  userEmail: string;
   userName: string;
   status: string;
   grandTotal: number;
@@ -33,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const {
       orderId,
-      userPhone,
+      userEmail,
       userName,
       status,
       grandTotal,
@@ -43,25 +43,8 @@ const handler = async (req: Request): Promise<Response> => {
       items,
     }: OrderStatusEmailRequest = await req.json();
 
-    // Generate internal email for notification (based on userPhone)
-    const userEmail = userPhone 
-      ? `${userPhone.replace(/\D/g, '')}@smartbasket.app`
-      : null;
-
-    if (!userEmail) {
-      console.log(`No phone provided for order ${orderId}`);
-      return new Response(
-        JSON.stringify({ error: "No phone provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Sending status notification for order ${orderId} to ${userPhone}`);
-    
     const statusEmoji = status === 'Out for Delivery' ? '🚚' : '📦';
     const statusMessage = status === 'Out for Delivery' 
-      ? 'Your order is on the way!'
-      : `Your order status has been updated to: ${status}`; 
       ? 'Your order is on the way!'
       : `Your order status has been updated to: ${status}`;
 

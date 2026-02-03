@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "android"
+		},
+		{
+			"path": "backend"
+		},
+		{
+			"path": "../smartbasket-categories"
+		}
+	]
+}

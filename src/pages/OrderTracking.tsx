@@ -83,7 +83,7 @@ const DRIVER_POSITIONS = [
 const OrderTracking = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { cancelOrder } = useDbOrders();
   
   const [order, setOrder] = useState<Order | null>(null);
@@ -277,13 +277,13 @@ const OrderTracking = () => {
 
       // Send email notification for 'Out for Delivery' status
       if (dynamicStatus === 'Out for Delivery' && lastNotifiedStatus !== null && user && order) {
-        const sendStatusNotification = async () => {
+        const sendStatusEmail = async () => {
           try {
             await supabase.functions.invoke('send-order-status-email', {
               body: {
                 orderId: order.id,
-                userPhone: profile?.phone || user.user_metadata?.phone,
-                userName: profile?.name || user.user_metadata?.name || profile?.phone || user.user_metadata?.phone,
+                userEmail: user.email,
+                userName: user.user_metadata?.name || user.email?.split('@')[0],
                 status: 'Out for Delivery',
                 grandTotal: order.grand_total,
                 deliveryAddress: order.delivery_address,
@@ -302,7 +302,7 @@ const OrderTracking = () => {
             }
           }
         };
-        sendStatusNotification();
+        sendStatusEmail();
       }
 
       setLastNotifiedStatus(dynamicStatus);
